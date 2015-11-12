@@ -57,6 +57,32 @@ public class UserInfo
         }
     }
 
+    @Override
+    public String toString()
+    {
+        return m_username + "@" + m_hostname + " " + m_servername + " :" + m_realname;
+    }
+
+    public void setUserName(String username)
+    {
+        m_username = username;
+    }
+
+    public void setHostName(String hostname)
+    {
+        m_hostname = hostname;
+    }
+
+    public void setServerName(String servername)
+    {
+        m_servername = servername;
+    }
+
+    public void setRealName(String realname)
+    {
+        m_realname = realname;
+    }
+
     public String getUserName()
     {
         return m_username;

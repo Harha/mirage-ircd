@@ -33,8 +33,8 @@ public class Connection
         m_input = input;
         m_output = output;
         m_nick = "*";
-        m_user = null;
-        m_server = null;
+        m_user = new UserInfo("*", "0", "*", "");
+        m_server = new ServerInfo("*", "0", "");
         m_pass = null;
         m_state = ConnectionState.UNIDENTIFIED;
         m_parent_client = null;
@@ -44,7 +44,7 @@ public class Connection
     @Override
     public String toString()
     {
-        return String.format("Connection[%s, %s, %s, %s, %s, %s]", getHost().getHostName(), getIp(), m_nick, (m_user == null) ? "null" : m_user.getUserName(), m_server, m_pass);
+        return String.format("Connection[%s, %s, %s, %s, %s, %s]", getHost().getHostName(), getIp(), m_nick, (m_user == null) ? "null" : m_user.getUserName(), m_server.getServerName(), m_pass);
     }
 
     public void updateUnidentified()
@@ -107,7 +107,7 @@ public class Connection
         }
 
         /* Have we received enough info in order to try client identification? */
-        if (m_nick != "*")
+        if (!m_nick.equals("*"))
         {
             /* Nick length must be in-between 1 and 9 characters */
             if (m_nick.length() < 1 || m_nick.length() > 9)
@@ -130,7 +130,7 @@ public class Connection
         }
 
         /* Have we received enough info in order to try server identification? */
-        if (m_server != null)
+        if (!m_server.getServerName().equals("*"))
         {
             /* Server name length must be in-between 5 and 32 characters */
             if (m_server.getServerName().length() < 5 || m_server.getServerName().length() > 32)

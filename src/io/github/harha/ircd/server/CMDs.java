@@ -49,6 +49,9 @@ public class CMDs
     public static final String RPL_NOUSERS          = "395";
 
     /* Errors */
+    public static final String ERR_NOSUCHNICK       = "401";
+    public static final String ERR_NOSUCHSERVER     = "402";
+    public static final String ERR_NOSUCHCHANNEL    = "403";
     public static final String ERR_NEEDMOREPARAMS   = "461";
     public static final String ERR_USERONCHANNEL    = "443";
     public static final String ERR_NOTONCHANNEL     = "442";

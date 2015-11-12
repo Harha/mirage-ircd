@@ -44,7 +44,7 @@ public class IRCServer implements Runnable
         m_servers = Collections.synchronizedMap(new ConcurrentHashMap<String, Server>());
         m_channels = Collections.synchronizedMap(new ConcurrentHashMap<String, Channel>());
         m_motd = new ArrayList<String>();
-        m_deltaTime = 100;
+        m_deltaTime = 0;
 
         /* Configure the main server socket */
         m_socket.setSoTimeout(0);
@@ -134,31 +134,33 @@ public class IRCServer implements Runnable
                     /* Add the connection as a client and inform them for the success */
                     c.sendMsgAndFlush(new ServMessage(this, "NOTICE", c.getNick(), "*** Found your ident, identified as a client."));
                     c.setState(ConnectionState.CONNECTED_AS_CLIENT);
+                    c.getUser().setHostName(c.getHost().getHostName());
                     Client client = new Client(c);
                     c.setParentClient(client);
                     m_clients.put(c.getNick(), client);
 
                     /* Send MOTD to the client */
                     c.sendMsg(new ServMessage(this, CMDs.RPL_MOTDSTART, c.getNick(), "- Message of the day -"));
-                    List<String> MOTD = getMotd();
-                    for (String s : MOTD)
+
+                    for (String s : m_motd)
                     {
                         c.sendMsg(new ServMessage(this, CMDs.RPL_MOTD, c.getNick(), "- " + s));
                     }
+
                     c.sendMsgAndFlush(new ServMessage(this, CMDs.RPL_ENDOFMOTD, c.getNick(), "End of /MOTD command."));
                 }
 
                 /* Handle identified server connections */
                 if (c.getState() == ConnectionState.IDENTIFIED_AS_SERVER)
                 {
-                    /* Add the connection as a client and inform them for the success */
+                    /* Add the connection as a server and inform them for the success */
                     c.sendMsgAndFlush(new ServMessage(this, "NOTICE", c.getServer().getServerName(), "*** Found your ident, identified as a server."));
                     c.setState(ConnectionState.CONNECTED_AS_SERVER);
                     Server server = new Server(c);
                     c.setParentServer(server);
-                    m_servers.put(c.getNick(), server);
+                    m_servers.put(c.getServer().getServerName(), server);
 
-                    /* Send MOTD to the client */
+                    /* Send MOTD to the server */
                     c.sendMsg(new ServMessage(this, CMDs.RPL_MOTDSTART, c.getServer().getServerName(), "- Message of the day -"));
 
                     for (String s : m_motd)
@@ -205,7 +207,7 @@ public class IRCServer implements Runnable
                     {
                         Client client = c.getParentClient();
 
-                        client.quitChannels("For an unknown reason.");
+                        client.quitChannels("Connection reset by peer.");
                     }
 
                     /* Is it a server? Should't be both. */

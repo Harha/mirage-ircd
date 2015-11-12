@@ -12,9 +12,9 @@ public class Main
     {
         Macros.LOG("mirage-ircd initializing...");
 
-        args = new String[2];
-        args[0] = "localhost";
-        args[1] = "6667";
+        // args = new String[2];
+        // args[0] = "localhost";
+        // args[1] = "6667";
 
         if (args.length < 2)
         {

@@ -104,7 +104,12 @@ public class Channel
         }
         else
         {
-            connection.sendMsgAndFlush(new ServMessage(m_ircserver, CMDs.ERR_USERONCHANNEL, connection.getNick(), m_name, "Is already on this channel."));
+            clientPart(client, "Rejoining this channel...");
+
+            if (client.getChannel(m_name) == null)
+            {
+                clientJoin(client);
+            }
         }
     }
 
@@ -120,7 +125,7 @@ public class Channel
         }
         else
         {
-            connection.sendMsgAndFlush(new ServMessage(connection, CMDs.ERR_USERNOTINCHANNEL, connection.getNick(), m_name, "Is not on the channel."));
+            connection.sendMsgAndFlush(new ServMessage(connection, CMDs.ERR_USERNOTINCHANNEL, connection.getNick(), m_name, "You are not on that channel."));
         }
     }
 

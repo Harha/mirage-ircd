@@ -132,6 +132,56 @@ public class Client
                         m_connection.sendMsgAndFlush(new ServMessage(m_connection, CMDs.ERR_NEEDMOREPARAMS, command, "Not enough parameters."));
                     }
                     break;
+                case "NOTICE":
+                    if (!params.isEmpty() || privmsg == null)
+                    {
+                        privmsg = privmsg.trim().replaceFirst(":", "");
+
+                        if (params.get(0).startsWith("#"))
+                        {
+                            Channel channel = m_channels.get(params.get(0));
+
+                            if (channel != null)
+                            {
+                                channel.sendMsgAndFlush(this, new ServMessage(m_connection, "NOTICE", params.get(0), privmsg));
+                            }
+                        }
+                        else
+                        {
+                            Client client = m_connection.getIRCServer().getClient(params.get(0));
+
+                            if (client != null)
+                            {
+                                client.getConnection().sendMsgAndFlush(new ServMessage(m_connection, "NOTICE", params.get(0), privmsg));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        m_connection.sendMsgAndFlush(new ServMessage(m_connection, CMDs.ERR_NEEDMOREPARAMS, command, "Not enough parameters."));
+                    }
+                    break;
+                case "WHOIS":
+                    if (!params.isEmpty())
+                    {
+                        for (String p : params)
+                        {
+                            Client client = m_connection.getIRCServer().getClient(p);
+
+                            if (client != null)
+                            {
+                                Connection c = client.getConnection();
+                                UserInfo u = c.getUser();
+                                m_connection.sendMsg(new ServMessage(m_connection.getIRCServer(), CMDs.RPL_WHOISUSER, m_connection.getNick(), c.getNick(), u.getUserName(), u.getHostName(), "*", u.getRealName() + " "));
+                                m_connection.sendMsgAndFlush(new ServMessage(m_connection.getIRCServer(), CMDs.RPL_ENDOFWHOIS, m_connection.getNick(), c.getNick(), "End of /WHOIS list."));
+                            }
+                            else
+                            {
+                                m_connection.sendMsgAndFlush(new ServMessage(m_connection.getIRCServer(), CMDs.ERR_NOSUCHNICK, m_connection.getNick(), p, "No such nick."));
+                            }
+                        }
+                    }
+                    break;
                 case "QUIT":
                     quitChannels(message.getParameter(0));
                     break;
