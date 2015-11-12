@@ -1,0 +1,2 @@
+This is a sample MOTD for mirage-ircd.
+Please change this.
