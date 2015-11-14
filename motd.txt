@@ -9,4 +9,4 @@
 88     `8'     88  88  88          `"8bbdP"Y8   `"YbbdP"Y8   `"Ybbd8"'            88  88      `8b    `"Y8888Y"'    `"8bbdP"Y8  
                                                 aa,    ,88                                                                     
                                                  "Y8bbdP"                                                                      
-This is the default configuration file for this irc daemon, please change this.
+This is the default motd file for this irc daemon, please change this.
