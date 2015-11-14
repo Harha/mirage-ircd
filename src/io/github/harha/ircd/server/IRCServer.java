@@ -1,7 +1,11 @@
 package io.github.harha.ircd.server;
 
+import io.github.harha.ircd.util.CaseIMap;
+import io.github.harha.ircd.util.Consts;
 import io.github.harha.ircd.util.FileUtils;
+import io.github.harha.ircd.util.IniFile;
 import io.github.harha.ircd.util.Macros;
+import io.github.harha.ircd.util.VarMap;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -10,15 +14,16 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
 
-public class IRCServer implements Runnable
+public class IRCServer extends VarMap implements Runnable
 {
 
     private InetAddress                   m_host;
@@ -29,6 +34,7 @@ public class IRCServer implements Runnable
     private Map<String, Client>           m_clients;
     private Map<String, Server>           m_servers;
     private Map<String, Channel>          m_channels;
+    private IniFile                       m_inifile;
     private List<String>                  m_motd;
     private int                           m_deltaTime;
 
@@ -39,18 +45,30 @@ public class IRCServer implements Runnable
         m_ip = InetAddress.getByName(ip);
         m_port = Integer.parseInt(port);
         m_socket = new ServerSocket(m_port, 1000, m_ip);
-        m_connections = Collections.synchronizedMap(new ConcurrentHashMap<String, List<Connection>>());
-        m_clients = Collections.synchronizedMap(new ConcurrentHashMap<String, Client>());
-        m_servers = Collections.synchronizedMap(new ConcurrentHashMap<String, Server>());
-        m_channels = Collections.synchronizedMap(new ConcurrentHashMap<String, Channel>());
+        m_connections = Collections.synchronizedMap(new CaseIMap<>());
+        m_clients = Collections.synchronizedMap(new CaseIMap<>());
+        m_servers = Collections.synchronizedMap(new CaseIMap<>());
+        m_channels = Collections.synchronizedMap(new CaseIMap<>());
         m_motd = new ArrayList<String>();
         m_deltaTime = 0;
 
         /* Configure the main server socket */
         m_socket.setSoTimeout(0);
 
+        /* Load the main .ini file */
+        m_inifile = new IniFile("main.ini");
+
+        putString("sName", m_inifile.getString("[server]", "sName", "mirage-ircd"));
+        putString("sMOTD", m_inifile.getString("[server]", "sMOTD", "motd.txt"));
+        putInteger("sMaxConns", m_inifile.getInt("[server]", "sMaxConns", 1028));
+        putInteger("cMaxConns", m_inifile.getInt("[client]", "cMaxConns", 10));
+        putInteger("cPingTime", m_inifile.getInt("[client]", "cPingTime", 600));
+        putInteger("cIdentTime", m_inifile.getInt("[client]", "cIdentTime", 300));
+
+        putString("sCreationDate", new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new Date()));
+
         /* Load the message of the day */
-        m_motd = FileUtils.loadTextFile("motd.txt");
+        m_motd = FileUtils.loadTextFile(getString("sMOTD"), false);
 
         if (m_motd == null || m_motd.isEmpty())
         {
@@ -77,23 +95,41 @@ public class IRCServer implements Runnable
                 Connection connection = new Connection(this, socket, input, output);
                 connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Connection accepted. Looking up your hostname..."));
 
-                /* Add it to the connections hashmap-list */
-                String key = connection.getHost().getHostName();
-                connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Found your hostname."));
-
-                if (!m_connections.containsKey(key))
+                if (m_connections.size() < getInteger("sMaxConns"))
                 {
-                    List<Connection> connections = new ArrayList<Connection>();
-                    connections.add(connection);
-                    m_connections.put(key, connections);
+                    /* Add it to the connections hashmap-list */
+                    String key = connection.getHost().getHostName();
+                    connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Found your hostname."));
+
+                    if (!m_connections.containsKey(key))
+                    {
+                        List<Connection> connections = new ArrayList<Connection>();
+                        connections.add(connection);
+                        m_connections.put(key, connections);
+                    }
+                    else
+                    {
+                        m_connections.get(key).add(connection);
+                    }
+
+                    Macros.LOG("New incoming " + connection + ".");
+
+                    if (m_connections.get(key).size() > getInteger("cMaxConns"))
+                    {
+                        connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Sorry, but your ip exceeds max connections per ip."));
+                        connection.setState(ConnState.DISCONNECTED);
+                        Macros.LOG("Too many connections from " + connection + ", disconnecting...");
+                    }
+
                 }
                 else
                 {
-                    m_connections.get(key).add(connection);
-                }
+                    /* Server cannot accept any more connections, close the socket. */
+                    connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Server connection limit reached. " + m_connections.size() + "/" + getInteger("sMaxConns")));
+                    connection.kill();
 
-                /* Log the event to console */
-                Macros.LOG("New incoming " + connection + ".");
+                    Macros.LOG("Too many connections on the server, " + connection + " disconnected.");
+                }
             } catch (IOException e)
             {
                 e.printStackTrace();
@@ -118,26 +154,47 @@ public class IRCServer implements Runnable
                 /* First check, if the socket was closed for some reason */
                 if (c.getSocket().isClosed() || c.getOutput().checkError())
                 {
-                    c.setState(ConnectionState.DISCONNECTED);
+                    c.setState(ConnState.DISCONNECTED);
                 }
 
                 /* Handle unidentified connections */
-                if (c.getState() == ConnectionState.UNIDENTIFIED)
+                if (c.getState() == ConnState.UNIDENTIFIED)
                 {
-                    c.sendMsgAndFlush(new ServMessage(this, "NOTICE", c.getNick(), "*** Checking ident..."));
+                    if (c.getIdentTime() == -1)
+                        c.sendMsgAndFlush(new ServMessage(this, "NOTICE", c.getNick(), "*** Checking ident..."));
+
                     c.updateUnidentified();
+
+                    /* Wait for x seconds before disconnecting the connection */
+                    if (c.getIdentTime() > getInteger("cIdentTime"))
+                    {
+                        c.sendMsgAndFlush(new ServMessage(this, "NOTICE", c.getNick(), "*** Failed to identify the connection, disconnected."));
+                        c.setState(ConnState.DISCONNECTED);
+                    }
+
+                    c.setIdentTime(c.getIdentTime() + 1);
                 }
 
                 /* Handle identified client connections */
-                if (c.getState() == ConnectionState.IDENTIFIED_AS_CLIENT)
+                if (c.getState() == ConnState.IDENTIFIED_AS_CLIENT)
                 {
                     /* Add the connection as a client and inform them for the success */
                     c.sendMsgAndFlush(new ServMessage(this, "NOTICE", c.getNick(), "*** Found your ident, identified as a client."));
-                    c.setState(ConnectionState.CONNECTED_AS_CLIENT);
+                    c.setState(ConnState.CONNECTED_AS_CLIENT);
                     c.getUser().setHostName(c.getHost().getHostName());
                     Client client = new Client(c);
                     c.setParentClient(client);
                     m_clients.put(c.getNick(), client);
+
+                    /* Send some info about the server */
+                    c.sendMsg(new ServMessage(this, "001", c.getNick(), "Welcome to the " + getString("sName") + " IRC network, " + c.getNick()));
+                    c.sendMsg(new ServMessage(this, "002", c.getNick(), "Your host is " + getHost().getHostName() + ", running version mirage-ircd-" + Consts.VERSION));
+                    c.sendMsg(new ServMessage(this, "003", c.getNick(), "This server was created on " + getString("sCreationDate")));
+                    c.sendMsg(new ServMessage(this, CMDs.RPL_LUSERCLIENT, c.getNick(), "There are " + m_connections.size() + " users and 0 invisible on 1 server."));
+                    c.sendMsg(new ServMessage(this, CMDs.RPL_LUSEROP, c.getNick(), "0", "IRC Operators online."));
+                    c.sendMsg(new ServMessage(this, CMDs.RPL_LUSERUNKNOWN, c.getNick(), "0", "Unknown connections."));
+                    c.sendMsg(new ServMessage(this, CMDs.RPL_LUSERCHANNELS, c.getNick(), Integer.toString(m_channels.size()), "Channels formed."));
+                    c.sendMsg(new ServMessage(this, CMDs.RPL_LUSERME, c.getNick(), "I have " + m_clients.size() + " clients and " + m_servers.size() + " servers."));
 
                     /* Send MOTD to the client */
                     c.sendMsg(new ServMessage(this, CMDs.RPL_MOTDSTART, c.getNick(), "- Message of the day -"));
@@ -151,68 +208,73 @@ public class IRCServer implements Runnable
                 }
 
                 /* Handle identified server connections */
-                if (c.getState() == ConnectionState.IDENTIFIED_AS_SERVER)
+                else if (c.getState() == ConnState.IDENTIFIED_AS_SERVER)
                 {
                     /* Add the connection as a server and inform them for the success */
-                    c.sendMsgAndFlush(new ServMessage(this, "NOTICE", c.getServer().getServerName(), "*** Found your ident, identified as a server."));
-                    c.setState(ConnectionState.CONNECTED_AS_SERVER);
+                    c.sendMsgAndFlush(new ServMessage(this, "NOTICE", c.getServer().getName(), "*** Found your ident, identified as a server."));
+                    c.setState(ConnState.CONNECTED_AS_SERVER);
+                    c.getUser().setHostName(c.getHost().getHostName());
                     Server server = new Server(c);
                     c.setParentServer(server);
-                    m_servers.put(c.getServer().getServerName(), server);
+                    m_servers.put(c.getServer().getName(), server);
 
                     /* Send MOTD to the server */
-                    c.sendMsg(new ServMessage(this, CMDs.RPL_MOTDSTART, c.getServer().getServerName(), "- Message of the day -"));
+                    c.sendMsg(new ServMessage(this, CMDs.RPL_MOTDSTART, c.getServer().getName(), "- Message of the day -"));
 
                     for (String s : m_motd)
                     {
-                        c.sendMsg(new ServMessage(this, CMDs.RPL_MOTD, c.getServer().getServerName(), "- " + s));
+                        c.sendMsg(new ServMessage(this, CMDs.RPL_MOTD, c.getServer().getName(), "- " + s));
                     }
 
-                    c.sendMsgAndFlush(new ServMessage(this, CMDs.RPL_ENDOFMOTD, c.getServer().getServerName(), "End of /MOTD command."));
+                    c.sendMsgAndFlush(new ServMessage(this, CMDs.RPL_ENDOFMOTD, c.getServer().getName(), "End of /MOTD command."));
                 }
 
                 /* Handle connected client connections */
-                if (c.getState() == ConnectionState.CONNECTED_AS_CLIENT)
+                if (c.getState() == ConnState.CONNECTED_AS_CLIENT)
                 {
                     Client client = c.getParentClient();
 
                     /* Send a PING request between intervals */
-                    if (client.getPingTimer() <= 0)
+                    int pingtime = getInteger("cPingTime");
+                    if (client.getPingTimer() >= pingtime && client.getPingTimer() % (pingtime / 10) == 0)
                     {
                         c.sendMsgAndFlush(new ServMessage("", "PING", c.getNick()));
                     }
 
                     client.updateIdentifiedClient();
 
-                    /* Disconnect if it didn't respond to the PING request */
-                    if (client.getPingTimer() <= -100)
+                    /* Disconnect if it didn't respond to the PING request given enough time */
+                    if (client.getPingTimer() > (int) (pingtime * 1.5))
                     {
-                        c.setState(ConnectionState.DISCONNECTED);
+                        c.setState(ConnState.DISCONNECTED);
                     }
 
-                    client.setPingTimer(client.getPingTimer() - 1);
+                    client.setPingTimer(client.getPingTimer() + 1);
                 }
 
                 /* Handle connected server connections */
-                if (c.getState() == ConnectionState.CONNECTED_AS_SERVER)
+                else if (c.getState() == ConnState.CONNECTED_AS_SERVER)
                 {
                     c.getParentServer().updateIdentifiedServer();
                 }
 
                 /* Unregister the connection if it was closed */
-                if (c.getState() == ConnectionState.DISCONNECTED)
+                if (c.getState() == ConnState.DISCONNECTED)
                 {
-                    /* Is it a client? */
-                    if (c.getParentClient() != null)
-                    {
-                        Client client = c.getParentClient();
+                    Client client = c.getParentClient();
+                    Server server = c.getParentServer();
 
-                        client.quitChannels("Connection reset by peer.");
+                    /* Is it a client? */
+                    if (client != null)
+                    {
+                        client.quitChannels("Connection reset by peer...");
+                        m_clients.remove(c.getNick());
                     }
 
                     /* Is it a server? Should't be both. */
-                    if (c.getParentServer() != null)
+                    if (server != null)
                     {
+                        m_servers.remove(c.getServer().getName());
                     }
 
                     c.kill();
@@ -227,6 +289,28 @@ public class IRCServer implements Runnable
                 it_con_map.remove();
             }
         }
+    }
+
+    public void updateChannels()
+    {
+        Iterator<Entry<String, Channel>> it_chan_map = m_channels.entrySet().iterator();
+
+        while (it_chan_map.hasNext())
+        {
+            Entry<String, Channel> e = it_chan_map.next();
+            Channel c = (Channel) e.getValue();
+
+            /* Delete empty channels */
+            if (c.getState() == ChanState.EMPTY)
+            {
+                it_chan_map.remove();
+            }
+        }
+    }
+
+    public void addClient(Client client)
+    {
+        m_clients.put(client.getConnection().getNick().toLowerCase(), client);
     }
 
     public void setDeltaTime(int deltaTime)

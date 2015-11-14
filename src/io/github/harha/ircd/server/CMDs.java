@@ -4,6 +4,11 @@ public class CMDs
 {
 
     /* Replies */
+    public static final String RPL_LUSERCLIENT      = "251";
+    public static final String RPL_LUSEROP          = "252";
+    public static final String RPL_LUSERUNKNOWN     = "253";
+    public static final String RPL_LUSERCHANNELS    = "254";
+    public static final String RPL_LUSERME          = "255";
     public static final String RPL_NONE             = "300";
     public static final String RPL_USERHOST         = "302";
     public static final String RPL_ISON             = "303";

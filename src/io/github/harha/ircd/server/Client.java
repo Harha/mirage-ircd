@@ -1,5 +1,6 @@
 package io.github.harha.ircd.server;
 
+import io.github.harha.ircd.util.CaseIMap;
 import io.github.harha.ircd.util.Macros;
 
 import java.io.IOException;
@@ -9,7 +10,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class Client
 {
@@ -21,7 +21,7 @@ public class Client
     public Client(Connection connection)
     {
         m_connection = connection;
-        m_channels = Collections.synchronizedMap(new ConcurrentHashMap<String, Channel>());
+        m_channels = Collections.synchronizedMap(new CaseIMap<>());
         m_pingtimer = 100;
     }
 
@@ -104,46 +104,16 @@ public class Client
                     }
                     break;
                 case "PRIVMSG":
-                    if (!params.isEmpty() || privmsg == null)
-                    {
-                        privmsg = privmsg.trim().replaceFirst(":", "");
-
-                        if (params.get(0).startsWith("#"))
-                        {
-                            Channel channel = m_channels.get(params.get(0));
-
-                            if (channel != null)
-                            {
-                                channel.sendMsgAndFlush(this, new ServMessage(m_connection, "PRIVMSG", params.get(0), privmsg));
-                            }
-                        }
-                        else
-                        {
-                            Client client = m_connection.getIRCServer().getClient(params.get(0));
-
-                            if (client != null)
-                            {
-                                client.getConnection().sendMsgAndFlush(new ServMessage(m_connection, "PRIVMSG", params.get(0), privmsg));
-                            }
-                        }
-                    }
-                    else
-                    {
-                        m_connection.sendMsgAndFlush(new ServMessage(m_connection, CMDs.ERR_NEEDMOREPARAMS, command, "Not enough parameters."));
-                    }
-                    break;
                 case "NOTICE":
                     if (!params.isEmpty() || privmsg == null)
                     {
-                        privmsg = privmsg.trim().replaceFirst(":", "");
-
                         if (params.get(0).startsWith("#"))
                         {
                             Channel channel = m_channels.get(params.get(0));
 
                             if (channel != null)
                             {
-                                channel.sendMsgAndFlush(this, new ServMessage(m_connection, "NOTICE", params.get(0), privmsg));
+                                channel.sendMsgAndFlush(this, new ServMessage(m_connection, command, params.get(0), privmsg));
                             }
                         }
                         else
@@ -152,7 +122,7 @@ public class Client
 
                             if (client != null)
                             {
-                                client.getConnection().sendMsgAndFlush(new ServMessage(m_connection, "NOTICE", params.get(0), privmsg));
+                                client.getConnection().sendMsgAndFlush(new ServMessage(m_connection, command, params.get(0), privmsg));
                             }
                         }
                     }
@@ -184,9 +154,25 @@ public class Client
                     break;
                 case "QUIT":
                     quitChannels(message.getParameter(0));
+                    m_connection.setState(ConnState.DISCONNECTED);
                     break;
             }
         }
+    }
+
+    public void sendMsg(ServMessage message)
+    {
+        m_connection.sendMsg(message);
+    }
+
+    public void sendMsgAndFlush(ServMessage message)
+    {
+        m_connection.sendMsgAndFlush(message);
+    }
+
+    public void flush()
+    {
+        m_connection.flush();
     }
 
     public void sendMsgToChannels(ServMessage message)

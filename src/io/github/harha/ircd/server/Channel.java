@@ -1,10 +1,11 @@
 package io.github.harha.ircd.server;
 
+import io.github.harha.ircd.util.CaseIMap;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class Channel
 {
@@ -13,6 +14,7 @@ public class Channel
     private String              m_name;
     private String              m_key;
     private String              m_topic;
+    private ChanState           m_state;
     private Map<String, Client> m_clients;
 
     public Channel(IRCServer ircserver, String name, String key, String topic)
@@ -21,7 +23,8 @@ public class Channel
         m_name = name;
         m_key = key;
         m_topic = "";
-        m_clients = Collections.synchronizedMap(new ConcurrentHashMap<String, Client>());
+        m_state = ChanState.PUBLIC;
+        m_clients = Collections.synchronizedMap(new CaseIMap<>());
     }
 
     public void sendMsg(ServMessage message)
@@ -127,6 +130,11 @@ public class Channel
         {
             connection.sendMsgAndFlush(new ServMessage(connection, CMDs.ERR_USERNOTINCHANNEL, connection.getNick(), m_name, "You are not on that channel."));
         }
+
+        if (m_clients.isEmpty())
+        {
+            m_state = ChanState.EMPTY;
+        }
     }
 
     public void clientQuit(Client client, String reason)
@@ -160,6 +168,11 @@ public class Channel
         }
     }
 
+    public void setState(ChanState state)
+    {
+        m_state = state;
+    }
+
     public IRCServer getIRCServer()
     {
         return m_ircserver;
@@ -178,6 +191,11 @@ public class Channel
     public String getTopic()
     {
         return m_topic;
+    }
+
+    public ChanState getState()
+    {
+        return m_state;
     }
 
     public String getNames()

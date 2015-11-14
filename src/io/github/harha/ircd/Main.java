@@ -61,6 +61,7 @@ public class Main
             long time_s = System.nanoTime();
 
             server_object.updateConnections();
+            server_object.updateChannels();
 
             long time_e = System.nanoTime();
             int time_d = (int) ((time_e - time_s) / 1000000);
@@ -69,7 +70,7 @@ public class Main
 
             try
             {
-                Thread.sleep(100 - time_d);
+                Thread.sleep(Math.max(100 - time_d, 10));
             } catch (InterruptedException e)
             {
                 e.printStackTrace();

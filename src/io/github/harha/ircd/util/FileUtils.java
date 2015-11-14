@@ -11,7 +11,7 @@ import java.util.List;
 public class FileUtils
 {
 
-    public static List<String> loadTextFile(String filepath)
+    public static List<String> loadTextFile(String filepath, boolean trimws)
     {
         File file = new File(filepath);
 
@@ -33,7 +33,7 @@ public class FileUtils
 
             while ((line = reader.readLine()) != null)
             {
-                line = line.trim();
+                line = trimws ? line.trim() : line;
 
                 if (line.isEmpty())
                     continue;

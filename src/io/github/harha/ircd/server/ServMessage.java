@@ -59,7 +59,7 @@ public class ServMessage
 
         for (String p : m_parameters)
         {
-            parameters += (p.contains(" ") ? ":" : "") + p + " ";
+            parameters += (p.contains(" ") && !p.startsWith(":") ? ":" : "") + p + " ";
         }
 
         return parameters.trim();

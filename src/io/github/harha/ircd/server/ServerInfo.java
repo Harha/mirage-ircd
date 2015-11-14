@@ -1,18 +1,30 @@
 package io.github.harha.ircd.server;
 
+import io.github.harha.ircd.util.Macros;
+
 import java.util.List;
 
 public class ServerInfo
 {
 
-    private String m_servername;
+    private String m_name;
     private int    m_hopcount;
     private String m_info;
 
-    public ServerInfo(String servername, String hopcount, String info)
+    public ServerInfo(String name, String hopcount, String info)
     {
-        m_servername = servername;
-        m_hopcount = Integer.parseInt(hopcount);
+        m_name = name;
+
+        try
+        {
+            m_hopcount = Integer.parseInt(hopcount);
+        } catch (NumberFormatException e)
+        {
+            Macros.ERR("Failed to format the hopcount number that other connected server published, set it to 0.");
+
+            m_hopcount = 0;
+        }
+
         m_info = info;
     }
 
@@ -20,16 +32,24 @@ public class ServerInfo
     {
         if (parameters.size() >= 1)
         {
-            m_servername = parameters.get(0);
+            m_name = parameters.get(0);
         }
         else
         {
-            m_servername = "";
+            m_name = "";
         }
 
         if (parameters.size() >= 2)
         {
-            m_hopcount = Integer.parseInt(parameters.get(1));
+            try
+            {
+                m_hopcount = Integer.parseInt(parameters.get(1));
+            } catch (NumberFormatException e)
+            {
+                Macros.ERR("Failed to format the hopcount number that other connected server published, set it to 0.");
+
+                m_hopcount = 0;
+            }
         }
         else
         {
@@ -46,9 +66,9 @@ public class ServerInfo
         }
     }
 
-    public String getServerName()
+    public String getName()
     {
-        return m_servername;
+        return m_name;
     }
 
     public int getHopCount()

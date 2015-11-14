@@ -13,17 +13,18 @@ import java.util.List;
 public class Connection
 {
 
-    private IRCServer       m_ircserver;
-    private Socket          m_socket;
-    private BufferedReader  m_input;
-    private PrintWriter     m_output;
-    private String          m_nick;
-    private UserInfo        m_user;
-    private ServerInfo      m_server;
-    private String          m_pass;
-    private ConnectionState m_state;
-    private Client          m_parent_client;
-    private Server          m_parent_server;
+    private IRCServer      m_ircserver;
+    private Socket         m_socket;
+    private BufferedReader m_input;
+    private PrintWriter    m_output;
+    private String         m_nick;
+    private UserInfo       m_user;
+    private ServerInfo     m_server;
+    private String         m_pass;
+    private ConnState      m_state;
+    private int            m_identTime;
+    private Client         m_parent_client;
+    private Server         m_parent_server;
 
     public Connection(IRCServer ircserver, Socket socket, BufferedReader input, PrintWriter output)
     {
@@ -36,7 +37,8 @@ public class Connection
         m_user = new UserInfo("*", "0", "*", "");
         m_server = new ServerInfo("*", "0", "");
         m_pass = null;
-        m_state = ConnectionState.UNIDENTIFIED;
+        m_state = ConnState.UNIDENTIFIED;
+        m_identTime = -1;
         m_parent_client = null;
         m_parent_server = null;
     }
@@ -44,7 +46,7 @@ public class Connection
     @Override
     public String toString()
     {
-        return String.format("Connection[%s, %s, %s, %s, %s, %s]", getHost().getHostName(), getIp(), m_nick, (m_user == null) ? "null" : m_user.getUserName(), m_server.getServerName(), m_pass);
+        return String.format("Connection[%s, %s, %s, %s, %s, %s]", getHost().getHostName(), getIp(), m_nick, (m_user == null) ? "null" : m_user.getUserName(), m_server.getName(), m_pass);
     }
 
     public void updateUnidentified()
@@ -79,6 +81,10 @@ public class Connection
 
             switch (message.getCommand())
             {
+                case "GET":
+                    sendMsgAndFlush(new ServMessage(m_ircserver, "NOTICE", m_nick, "*** Detected that the connection was made using a browser, disconnected."));
+                    setState(ConnState.DISCONNECTED);
+                    break;
                 case "NICK":
                     if (message.getParameters().size() > 0)
                     {
@@ -113,7 +119,7 @@ public class Connection
             if (m_nick.length() < 1 || m_nick.length() > 9)
             {
                 sendMsgAndFlush(new ServMessage(m_ircserver, "NOTICE", m_nick, "*** NICK length must be in-between 1 and 9 characters. Disconnecting."));
-                m_state = ConnectionState.DISCONNECTED;
+                m_state = ConnState.DISCONNECTED;
                 return;
             }
 
@@ -121,35 +127,35 @@ public class Connection
             if (m_ircserver.getClients().containsKey(m_nick))
             {
                 sendMsgAndFlush(new ServMessage(m_ircserver, "NOTICE", m_nick, "*** NICK already exists on this server. Disconnecting."));
-                m_state = ConnectionState.DISCONNECTED;
+                m_state = ConnState.DISCONNECTED;
                 return;
             }
 
             /* Accept the connection as identified client */
-            m_state = ConnectionState.IDENTIFIED_AS_CLIENT;
+            m_state = ConnState.IDENTIFIED_AS_CLIENT;
         }
 
         /* Have we received enough info in order to try server identification? */
-        if (!m_server.getServerName().equals("*"))
+        if (!m_server.getName().equals("*"))
         {
             /* Server name length must be in-between 5 and 32 characters */
-            if (m_server.getServerName().length() < 5 || m_server.getServerName().length() > 32)
+            if (m_server.getName().length() < 5 || m_server.getName().length() > 32)
             {
-                sendMsgAndFlush(new ServMessage(m_ircserver, "NOTICE", m_server.getServerName(), "*** SERVER <servername> length must be in-between 5 and 32 characters. Disconnecting."));
-                m_state = ConnectionState.DISCONNECTED;
+                sendMsgAndFlush(new ServMessage(m_ircserver, "NOTICE", m_server.getName(), "*** SERVER <servername> length must be in-between 5 and 32 characters. Disconnecting."));
+                m_state = ConnState.DISCONNECTED;
                 return;
             }
 
             /* Server name must not exist on the server */
-            if (m_ircserver.getServers().containsKey(m_server.getServerName()))
+            if (m_ircserver.getServers().containsKey(m_server.getName()))
             {
-                sendMsgAndFlush(new ServMessage(m_ircserver, "NOTICE", m_server.getServerName(), "*** SERVER <servername> already exists on this server. Disconnecting."));
-                m_state = ConnectionState.DISCONNECTED;
+                sendMsgAndFlush(new ServMessage(m_ircserver, "NOTICE", m_server.getName(), "*** SERVER <servername> already exists on this server. Disconnecting."));
+                m_state = ConnState.DISCONNECTED;
                 return;
             }
 
             /* Accept the connection as identified server */
-            m_state = ConnectionState.IDENTIFIED_AS_SERVER;
+            m_state = ConnState.IDENTIFIED_AS_SERVER;
         }
     }
 
@@ -178,20 +184,16 @@ public class Connection
         {
             e.printStackTrace();
         }
-
-        if (m_server == null)
-        {
-            m_ircserver.getClients().remove(m_nick);
-        }
-        else
-        {
-            m_ircserver.getServers().remove(m_server.getServerName());
-        }
     }
 
-    public void setState(ConnectionState state)
+    public void setState(ConnState state)
     {
         m_state = state;
+    }
+
+    public void setIdentTime(int time)
+    {
+        m_identTime = time;
     }
 
     public void setParentClient(Client client)
@@ -254,9 +256,14 @@ public class Connection
         return m_pass;
     }
 
-    public ConnectionState getState()
+    public ConnState getState()
     {
         return m_state;
+    }
+
+    public int getIdentTime()
+    {
+        return m_identTime;
     }
 
     public Client getParentClient()
