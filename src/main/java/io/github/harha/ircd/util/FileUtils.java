@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+@Deprecated
 public class FileUtils
 {
 
