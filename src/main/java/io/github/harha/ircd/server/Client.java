@@ -152,6 +152,18 @@ public class Client
                         }
                     }
                     break;
+                case "TOPIC":
+                    if (!params.isEmpty())
+                    {
+                        Channel channel = m_connection.getIRCServer().getChannel(params.get(0));
+                        String topic = privmsg;
+
+                        if (channel != null && !privmsg.isEmpty())
+                        {
+                            channel.setTopic(this, topic);
+                        }
+                    }
+                    break;
                 case "QUIT":
                     quitChannels(message.getParameter(0));
                     m_connection.setState(ConnState.DISCONNECTED);

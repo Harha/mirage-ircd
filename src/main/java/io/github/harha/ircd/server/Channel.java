@@ -153,18 +153,24 @@ public class Channel
         }
     }
 
-    public void setTopic(String topic)
+    public void setTopic(Client client, String topic)
     {
         m_topic = topic;
 
         if (!m_topic.trim().isEmpty())
         {
-            sendMsgAndFlush(new ServMessage(m_ircserver, CMDs.RPL_TOPIC, m_name, m_topic));
+            Iterator<Entry<String, Client>> i = m_clients.entrySet().iterator();
+
+            while (i.hasNext())
+            {
+                Entry<String, Client> e = i.next();
+                Client c = (Client) e.getValue();
+                c.getConnection().sendMsgAndFlush(new ServMessage(m_ircserver, CMDs.RPL_TOPIC, c.getConnection().getNick(), m_name, m_topic));
+            }
         }
         else
         {
             m_topic = "";
-            sendMsgAndFlush(new ServMessage(m_ircserver, CMDs.RPL_NOTOPIC, m_name, "No topic is set."));
         }
     }
 

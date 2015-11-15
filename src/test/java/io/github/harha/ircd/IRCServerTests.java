@@ -8,11 +8,15 @@ import java.io.IOException;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-public class IRCServerTests {
+public class IRCServerTests
+{
+
     @Test
-    public void testIRCServerSimpleInit() throws IOException {
-        IRCServer server = new IRCServer();
+    public void testIRCServerSimpleInit() throws IOException
+    {
+        IRCServer server = new IRCServer("127.0.0.1", "6667");
         assertEquals(server.getString("sName"), "mirage-ircd test server");
         assertTrue(server.getMotd().size() > 1);
     }
+
 }

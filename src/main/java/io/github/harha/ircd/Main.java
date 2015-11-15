@@ -3,6 +3,7 @@ package io.github.harha.ircd;
 import java.io.IOException;
 
 import io.github.harha.ircd.server.IRCServer;
+import io.github.harha.ircd.util.Consts;
 import io.github.harha.ircd.util.Macros;
 
 public class Main
@@ -10,15 +11,15 @@ public class Main
 
     public static void main(String[] args)
     {
-        Macros.LOG("mirage-ircd initializing...");
+        Macros.LOG("mirage-ircd-%s initializing...", Consts.VERSION);
 
-        // args = new String[2];
-        // args[0] = "localhost";
-        // args[1] = "6667";
+        args = new String[2];
+        args[0] = "localhost";
+        args[1] = "6667";
 
         if (args.length < 2)
         {
-            Macros.ERR("Please give the server ip and port as arguments. Example: java -jar program.jar 127.0.0.1 1337");
+            Macros.ERR("Please give the server ip and port as arguments. Example: java -jar program.jar 127.0.0.1 6667");
             System.exit(-1);
         }
 
@@ -33,11 +34,13 @@ public class Main
         } catch (NumberFormatException e)
         {
             Macros.ERR("Converting ip/port from string into another format failed.");
+
             server_object = null;
             e.printStackTrace();
         } catch (IOException e)
         {
             Macros.ERR("Cannot resolve the given host.");
+
             server_object = null;
             e.printStackTrace();
         }

@@ -1,6 +1,5 @@
 package io.github.harha.ircd.util;
 
-@Deprecated
 public class Macros
 {
 

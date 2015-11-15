@@ -4,31 +4,41 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
-@Deprecated
 public class FileUtils
 {
 
-    public static List<String> loadTextFile(String filepath, boolean trimws)
+    public static List<String> loadTextFile(URL resource, boolean trimws)
     {
-        File file = new File(filepath);
+        File file = null;
 
-        if (!file.exists() || file.isDirectory())
+        try
         {
-            Macros.ERR("Input file <%s> either doesn't exist or is a directory.", filepath);
+            file = new File(resource.toURI());
+        } catch (URISyntaxException e1)
+        {
+            e1.printStackTrace();
+        }
+
+        if (file == null || !file.exists() || file.isDirectory())
+        {
+            Macros.ERR("Input file <%s> either doesn't exist or is a directory.", resource.getPath());
             return null;
         }
 
         List<String> result = new ArrayList<String>();
-        FileInputStream input;
+        InputStream input;
         BufferedReader reader;
 
         try
         {
-            input = new FileInputStream(filepath);
+            input = new FileInputStream(file);
             reader = new BufferedReader(new InputStreamReader(input));
             String line;
 
@@ -49,7 +59,7 @@ public class FileUtils
             e.printStackTrace();
         }
 
-        Macros.LOG("File <%s> has been loaded successfully.", filepath);
+        Macros.LOG("File <%s> has been loaded successfully.", resource.getPath());
 
         return result;
     }
