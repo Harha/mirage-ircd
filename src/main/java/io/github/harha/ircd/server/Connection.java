@@ -15,6 +15,7 @@ public class Connection
 
     private IRCServer      m_ircserver;
     private Socket         m_socket;
+    private InetAddress    m_host;
     private BufferedReader m_input;
     private PrintWriter    m_output;
     private String         m_nick;
@@ -31,12 +32,13 @@ public class Connection
         /* Initialize all member variables and objects */
         m_ircserver = ircserver;
         m_socket = socket;
+        m_host = socket.getInetAddress();
         m_input = input;
         m_output = output;
         m_nick = "*";
         m_user = new UserInfo("*", "0", "*", "");
         m_server = new ServerInfo("*", "0", "");
-        m_pass = null;
+        m_pass = "";
         m_state = ConnState.UNIDENTIFIED;
         m_identTime = -1;
         m_parent_client = null;
@@ -46,7 +48,7 @@ public class Connection
     @Override
     public String toString()
     {
-        return String.format("Connection[%s, %s, %s, %s, %s, %s]", getHost().getHostName(), getIp(), m_nick, (m_user == null) ? "null" : m_user.getUserName(), m_server.getName(), m_pass);
+        return String.format("Connection[%s, %s, %s]", m_nick, m_user, m_server);
     }
 
     public void updateUnidentified()
@@ -56,9 +58,10 @@ public class Connection
 
         try
         {
-            while (m_input.ready())
+            String line = null;
+            while (m_input.ready() && (line = m_input.readLine()) != null && !line.isEmpty())
             {
-                input_data.add(m_input.readLine());
+                input_data.add(line);
             }
         } catch (IOException e)
         {
@@ -72,7 +75,7 @@ public class Connection
         }
 
         /* Log the input to console */
-        Macros.LOG("Input from (%s): %s", getHost().getHostName(), input_data);
+        Macros.LOG("Input from %s: %s", this, input_data);
 
         /* Parse input and handle it appropriately */
         for (String l : input_data)
@@ -177,6 +180,8 @@ public class Connection
 
     public void kill()
     {
+        m_state = ConnState.DISCONNECTED;
+
         try
         {
             m_socket.close();
@@ -213,12 +218,17 @@ public class Connection
 
     public InetAddress getHost()
     {
-        return m_socket.getInetAddress();
+        return m_host;
     }
 
-    public String getIp()
+    public String getHostName()
     {
-        return getHost().getHostAddress();
+        return m_host.getHostName();
+    }
+
+    public String getIpAddr()
+    {
+        return m_host.getHostAddress();
     }
 
     public Socket getSocket()

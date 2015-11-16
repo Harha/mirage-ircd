@@ -2,34 +2,22 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
 
+    <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.harha</groupId>
-    <artifactId>mirage-ircd-maven</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>mirage-ircd</artifactId>
+    <version>0.1-SNAPSHOT</version>
     <properties>
-        <ini4j.version>[0.5.4,)</ini4j.version>
         <guava.version>[18.0,)</guava.version>
-        <slf4j.version>[1.7.10,)</slf4j.version>
         <testng.version>[6.9.9,)</testng.version>
     </properties>
 
     <dependencyManagement>
     <dependencies>
         <dependency>
-            <groupId>org.ini4j</groupId>
-            <artifactId>ini4j</artifactId>
-            <version>${ini4j.version}</version>
-        </dependency>
-        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>${guava.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>${slf4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
@@ -42,16 +30,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.ini4j</groupId>
-            <artifactId>ini4j</artifactId>
-        </dependency>
-        <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
@@ -68,6 +48,8 @@
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
+					<addClasspath>true</addClasspath>
+					<mainClass>io.github.harha.ircd.Main</mainClass>
                 </configuration>
             </plugin>
         </plugins>

@@ -12,14 +12,14 @@ public class IniFile
     private static Pattern                   s_section  = Pattern.compile("\\s*\\[([^]]*)\\]\\s*");
     private static Pattern                   s_keyvalue = Pattern.compile("\\s*([^=]*)=(.*)");
 
-    private URL                              m_resource;
+    private String                           m_filepath;
     private List<String>                     m_lines;
     private Map<String, Map<String, String>> m_entries;
 
-    public IniFile(URL resource)
+    public IniFile(String filepath)
     {
-        m_resource = resource;
-        m_lines = FileUtils.loadTextFile(resource, true);
+        m_filepath = filepath;
+        m_lines = FileUtils.loadTextFile(filepath, true);
         m_entries = new CaseIMap<>();
 
         if (m_lines != null && !m_lines.isEmpty())
@@ -57,9 +57,9 @@ public class IniFile
         }
     }
 
-    public URL getResource()
+    public String getFilePath()
     {
-        return m_resource;
+        return m_filepath;
     }
 
     public String getString(String section, String key, String defaultvalue)

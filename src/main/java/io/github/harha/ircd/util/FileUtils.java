@@ -14,31 +14,22 @@ import java.util.List;
 public class FileUtils
 {
 
-    public static List<String> loadTextFile(URL resource, boolean trimws)
+    public static List<String> loadTextFile(String filepath, boolean trimws)
     {
-        File file = null;
-
-        try
-        {
-            file = new File(resource.toURI());
-        } catch (URISyntaxException e1)
-        {
-            e1.printStackTrace();
-        }
-
-        if (file == null || !file.exists() || file.isDirectory())
-        {
-            Macros.ERR("Input file <%s> either doesn't exist or is a directory.", resource.getPath());
-            return null;
-        }
-
-        List<String> result = new ArrayList<String>();
         InputStream input;
         BufferedReader reader;
+        List<String> result = new ArrayList<String>();
 
         try
         {
-            input = new FileInputStream(file);
+            input = FileUtils.class.getClassLoader().getResourceAsStream(filepath);
+
+            if (input == null)
+            {
+                Macros.ERR("Input file <%s> either doesn't exist or is a directory.", filepath);
+                return null;
+            }
+
             reader = new BufferedReader(new InputStreamReader(input));
             String line;
 
@@ -46,7 +37,7 @@ public class FileUtils
             {
                 line = trimws ? line.trim() : line;
 
-                if (line.isEmpty())
+                if (line.isEmpty() && trimws)
                     continue;
 
                 result.add(line);
@@ -59,7 +50,7 @@ public class FileUtils
             e.printStackTrace();
         }
 
-        Macros.LOG("File <%s> has been loaded successfully.", resource.getPath());
+        Macros.LOG("File <%s> has been loaded successfully.", filepath);
 
         return result;
     }

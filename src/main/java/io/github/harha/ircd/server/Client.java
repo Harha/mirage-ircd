@@ -32,9 +32,10 @@ public class Client
 
         try
         {
-            while (m_connection.getInput().ready())
+            String line = null;
+            while (m_connection.getInput().ready() && (line = m_connection.getInput().readLine()) != null && !line.isEmpty())
             {
-                input_data.add(m_connection.getInput().readLine());
+                input_data.add(line);
             }
         } catch (IOException e)
         {
@@ -48,7 +49,7 @@ public class Client
         }
 
         /* Log the input to console */
-        Macros.LOG("Input from (%s): %s", m_connection.getHost().getHostName(), input_data);
+        Macros.LOG("Input from %s: %s", m_connection, input_data);
 
         /* Parse input and handle it appropriately */
         for (String l : input_data)
@@ -158,14 +159,14 @@ public class Client
                         Channel channel = m_connection.getIRCServer().getChannel(params.get(0));
                         String topic = privmsg;
 
-                        if (channel != null && !privmsg.isEmpty())
+                        if (channel != null && !topic.isEmpty())
                         {
                             channel.setTopic(this, topic);
                         }
                     }
                     break;
                 case "QUIT":
-                    quitChannels(message.getParameter(0));
+                    quitChans(message.getParameter(0));
                     m_connection.setState(ConnState.DISCONNECTED);
                     break;
             }
@@ -187,7 +188,7 @@ public class Client
         m_connection.flush();
     }
 
-    public void sendMsgToChannels(ServMessage message)
+    public void sendMsgToChans(ServMessage message)
     {
         Iterator<Entry<String, Channel>> i = m_channels.entrySet().iterator();
 
@@ -198,7 +199,7 @@ public class Client
         }
     }
 
-    public void sendMsgToChannelsAndFlush(ServMessage message)
+    public void sendMsgToChansAndFlush(ServMessage message)
     {
         Iterator<Entry<String, Channel>> i = m_channels.entrySet().iterator();
 
@@ -209,7 +210,7 @@ public class Client
         }
     }
 
-    public void quitChannels(String reason)
+    public void quitChans(String reason)
     {
         Iterator<Entry<String, Channel>> i = m_channels.entrySet().iterator();
 
@@ -221,7 +222,7 @@ public class Client
         }
     }
 
-    public void quitChannel(Channel channel, String reason)
+    public void quitChan(Channel channel, String reason)
     {
         if (m_channels.get(channel.getName()) != null)
         {
@@ -229,17 +230,17 @@ public class Client
         }
     }
 
-    public void addChannel(Channel channel)
+    public void addChan(Channel channel)
     {
         m_channels.put(channel.getName(), channel);
     }
 
-    public void removeChannels()
+    public void removeChans()
     {
         m_channels.clear();
     }
 
-    public void removeChannel(Channel channel)
+    public void removeChan(Channel channel)
     {
         m_channels.remove(channel.getName());
     }

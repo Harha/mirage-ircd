@@ -89,7 +89,7 @@ public class Channel
 
         if (client.getChannel(m_name) == null)
         {
-            client.addChannel(this);
+            client.addChan(this);
             m_clients.put(connection.getNick(), client);
             sendMsgAndFlush(new ServMessage(connection, "JOIN", m_name));
 
@@ -123,7 +123,7 @@ public class Channel
         if (client.getChannel(m_name) != null)
         {
             sendMsgAndFlush(new ServMessage(connection, "PART", m_name, reason));
-            client.removeChannel(this);
+            client.removeChan(this);
             m_clients.remove(client.getConnection().getNick());
         }
         else
@@ -144,7 +144,7 @@ public class Channel
         if (client.getChannel(m_name) != null)
         {
             sendMsgAndFlush(new ServMessage(connection, "QUIT", reason));
-            client.removeChannel(this);
+            client.removeChan(this);
             m_clients.remove(client.getConnection().getNick());
         }
         else

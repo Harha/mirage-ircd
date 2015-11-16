@@ -23,9 +23,10 @@ public class Server
 
         try
         {
-            while (m_connection.getInput().ready())
+            String line = null;
+            while (m_connection.getInput().ready() && (line = m_connection.getInput().readLine()) != null && !line.isEmpty())
             {
-                input_data.add(m_connection.getInput().readLine());
+                input_data.add(line);
             }
         } catch (IOException e)
         {
@@ -39,7 +40,7 @@ public class Server
         }
 
         /* Log the input to console */
-        Macros.LOG("Input from (%s): %s", m_connection.getHost().getHostName(), input_data);
+        Macros.LOG("Input from %s: %s", m_connection, input_data);
 
         /* Parse input and handle it appropriately */
         for (String l : input_data)

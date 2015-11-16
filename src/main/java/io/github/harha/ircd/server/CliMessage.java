@@ -1,7 +1,5 @@
 package io.github.harha.ircd.server;
 
-import io.github.harha.ircd.util.Macros;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,8 +49,6 @@ public class CliMessage
 
             parseParameters(parameters);
         }
-
-        Macros.LOG("Prefix: %s Command: %s Parameters: %s", m_prefix, m_command, m_parameters);
     }
 
     private void parseParameters(String parameters)

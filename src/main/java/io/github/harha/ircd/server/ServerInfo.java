@@ -66,6 +66,12 @@ public class ServerInfo
         }
     }
 
+    @Override
+    public String toString()
+    {
+        return m_name + " " + m_hopcount + " :" + m_info;
+    }
+
     public String getName()
     {
         return m_name;

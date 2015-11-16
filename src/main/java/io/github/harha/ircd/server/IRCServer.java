@@ -41,23 +41,23 @@ public class IRCServer extends VarMap implements Runnable
         m_clients = Collections.synchronizedMap(new CaseIMap<>());
         m_servers = Collections.synchronizedMap(new CaseIMap<>());
         m_channels = Collections.synchronizedMap(new CaseIMap<>());
-        m_inifile = new IniFile(this.getClass().getResource("/main.ini"));
+        m_inifile = new IniFile("main.ini");
         m_motd = new ArrayList<String>();
         m_deltaTime = 0;
 
-        putString("sName", m_inifile.getString("[server]", "sName", "mirage-ircd"));
-        putString("sMOTD", m_inifile.getString("[server]", "sMOTD", "/motd.txt"));
-        putInteger("sMaxConns", m_inifile.getInt("[server]", "sMaxConns", 1028));
-        putInteger("cMaxConns", m_inifile.getInt("[client]", "cMaxConns", 10));
-        putInteger("cPingTime", m_inifile.getInt("[client]", "cPingTime", 600));
-        putInteger("cIdentTime", m_inifile.getInt("[client]", "cIdentTime", 300));
+        putString("sName", m_inifile.getString("[server]", "name", "mirage-ircd"));
+        putString("sMOTD", m_inifile.getString("[server]", "motd", "motd.txt"));
+        putInteger("sMaxConns", m_inifile.getInt("[server]", "maxconns", 1028));
+        putInteger("cMaxConns", m_inifile.getInt("[client]", "maxconns", 10));
+        putInteger("cPingTime", m_inifile.getInt("[client]", "pingtime", 600));
+        putInteger("cIdentTime", m_inifile.getInt("[client]", "identtime", 300));
 
-        m_motd = FileUtils.loadTextFile(this.getClass().getResource(getString("sMOTD")), false);
+        m_motd = FileUtils.loadTextFile(getString("sMOTD"), false);
 
         if (m_motd == null)
         {
             m_motd = new ArrayList<String>();
-            m_motd.add("No message of the day set on this server.");
+            m_motd.add("No message of the day set on this server. Please refer to the main.ini file for loading it.");
         }
 
         putString("sCreationDate", new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new Date()));
@@ -70,47 +70,47 @@ public class IRCServer extends VarMap implements Runnable
         {
             try
             {
-                /* Wait for the next connection request... */
+                /* Accept connection, create i/o, create connection object */
                 Socket socket = m_socket.accept();
-
-                /* Once a connection arrives, create input / output listeners for the socket */
                 BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
-
-                /* Create the initial connection object */
                 Connection connection = new Connection(this, socket, input, output);
-                connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Connection accepted. Looking up your hostname..."));
 
-                if (m_connections.size() < getInteger("sMaxConns"))
+                /* Check if max connections per server limit has been reached */
+                if (m_connections.size() >= getInteger("sMaxConns"))
                 {
-                    /* Add it to the connections hashmap-list */
-                    String key = connection.getHost().getHostName();
-                    connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Found your hostname."));
+                    connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Server connection limit reached. " + m_connections.size() + "/" + getInteger("sMaxConns")));
+                    connection.kill();
+                    Macros.LOG("Too many connections on the server, " + connection + " disconnected.");
+                    continue;
+                }
 
-                    if (!m_connections.containsKey(key))
-                    {
-                        List<Connection> connections = new ArrayList<Connection>();
-                        m_connections.put(key, connections);
-                    }
-                    m_connections.get(key).add(connection);
+                /* Look up the hostname or ip, depending which one is available */
+                connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Connection accepted. Looking up your hostname..."));
+                String key = connection.getHost().getHostName();
+                connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Found your hostname."));
 
-                    Macros.LOG("New incoming " + connection + ".");
-
-                    if (m_connections.get(key).size() > getInteger("cMaxConns"))
+                /* Check if connections from same host already exist, check if max limit per hostname has been reached */
+                if (m_connections.containsKey(key))
+                {
+                    if (m_connections.get(key).size() >= getInteger("cMaxConns"))
                     {
                         connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Sorry, but your ip exceeds max connections per ip."));
-                        connection.setState(ConnState.DISCONNECTED);
-
+                        connection.kill();
                         Macros.LOG("Too many connections from " + connection + ", disconnecting...");
+                        continue;
                     }
                 }
                 else
                 {
-                    connection.sendMsgAndFlush(new ServMessage(this, "NOTICE", connection.getNick(), "*** Server connection limit reached. " + m_connections.size() + "/" + getInteger("sMaxConns")));
-                    connection.kill();
-
-                    Macros.LOG("Too many connections on the server, " + connection + " disconnected.");
+                    List<Connection> connections = new ArrayList<Connection>();
+                    m_connections.put(key, connections);
                 }
+
+                /* Add the accepted connection to the connections hashmap-list */
+                m_connections.get(key).add(connection);
+                Macros.LOG("New incoming " + connection + ".");
+
             } catch (IOException e)
             {
                 e.printStackTrace();
@@ -258,7 +258,7 @@ public class IRCServer extends VarMap implements Runnable
                     /* Is it a client? */
                     if (client != null)
                     {
-                        client.quitChannels("Connection reset by peer...");
+                        client.quitChans("Connection reset by peer...");
                         m_clients.remove(c.getNick());
                     }
 
